@@ -1,10 +1,10 @@
-# PyVeighNa
+# Takt
 
 Веб-терминал на Python: **Т-Инвест API + vn.py + HTML/CSS/JavaScript**.
 Портфель, котировки, график цены, активные заявки и журнал на одной странице.
 Адаптивный интерфейс с тёмной темой работает в браузере; прежний интерфейс PySide6 доступен отдельно.
 
-![Веб-интерфейс PyVeighNa: портфель, котировки и график SBER](docs/screenshots/web-overview.jpg)
+![Веб-интерфейс Takt: портфель, котировки и график SBER](docs/screenshots/web-overview.jpg)
 
 *Текущий веб-интерфейс в режиме песочницы: тестовый счёт с 1 000 000 виртуальных ₽,
 котировки и история цены SBER. Снимок сделан 21 сентября 2026 года.*
@@ -23,7 +23,7 @@ uv run pyveighna --port 3729
 Запуск с токеном песочницы и уже открытым тестовым счётом:
 
 ```bash
-uv run pyveighna --mode sandbox --port 3729
+uv run takt --mode sandbox --port 3729
 ```
 
 Для чтения настоящего счёта используйте `--mode readonly` и соответствующий токен.
@@ -48,7 +48,7 @@ uv run pyveighna --mode sandbox --port 3729
    для просмотра настоящего счёта.
 4. При нескольких счетах задайте `TINKOFF_ACCOUNT_ID`. Без него выбирается
    первый открытый счёт. Неверный ID приводит к ошибке, а не к смене счёта.
-5. Запустите `uv run pyveighna`.
+5. Запустите `uv run takt`.
 
 Песочница должна уже содержать открытый счёт. Приложение не создаёт счета,
 не пополняет их и не отправляет/отменяет заявки ни в одном режиме.
@@ -57,9 +57,9 @@ uv run pyveighna --mode sandbox --port 3729
 Режим можно переопределить при запуске:
 
 ```bash
-uv run pyveighna --mode demo
-uv run pyveighna --mode sandbox
-uv run pyveighna --mode readonly
+uv run takt --mode demo
+uv run takt --mode sandbox
+uv run takt --mode readonly
 ```
 
 | Настройка | Значение |
@@ -117,16 +117,16 @@ uv run pyveighna --mode readonly
 Файлы:
 
 ```text
-pyveighna/config.py      настройки и валидация
-pyveighna/models.py      модели и точные денежные значения Decimal
-pyveighna/providers.py   демо и чтение Tinkoff API
-pyveighna/rpc.py         ограничение времени запросов
-pyveighna/transport.py   TLS и подключение к актуальным адресам Т-Инвест
-pyveighna/certs/         корневой сертификат для соединения с брокером
-pyveighna/engine.py      фоновые задачи и события vn.py
-pyveighna/webserver.py   локальный HTTP API и фоновое обновление
-pyveighna/web/           веб-интерфейс, график и таблицы
-pyveighna/ui.py          прежний интерфейс Qt (--desktop)
+takt/config.py      настройки и валидация
+takt/models.py      модели и точные денежные значения Decimal
+takt/providers.py   демо и чтение Tinkoff API
+takt/rpc.py         ограничение времени запросов
+takt/transport.py   TLS и подключение к актуальным адресам Т-Инвест
+takt/certs/         корневой сертификат для соединения с брокером
+takt/engine.py      фоновые задачи и события vn.py
+takt/webserver.py   локальный HTTP API и фоновое обновление
+takt/web/           веб-интерфейс, график и таблицы
+takt/ui.py          прежний интерфейс Qt (--desktop)
 tests/                  тесты адаптера, движка и UI
 uv.lock                 зафиксированные зависимости
 ```
@@ -149,7 +149,7 @@ uv run pytest -q
 Параметр `--screenshot` относится только к прежнему интерфейсу Qt и всегда включает деморежим:
 
 ```bash
-QT_QPA_PLATFORM=offscreen uv run pyveighna --screenshot docs/screenshots/overview.png
+QT_QPA_PLATFORM=offscreen uv run takt --screenshot docs/screenshots/overview.png
 ```
 
 ## Особенности зависимостей
@@ -169,7 +169,7 @@ SDK закреплён на коммите `1cc84950266d62cd0bc7a43ad764dddfd425
 
 Подключение использует актуальные адреса `invest-public-api.tbank.ru:443`
 и `sandbox-invest-public-api.tbank.ru:443`. Для этих gRPC-каналов явно указан
-официальный Russian Trusted Root CA из `pyveighna/certs/`.
+официальный Russian Trusted Root CA из `takt/certs/`.
 Проверка цепочки, срока действия и имени сервера остаётся включённой.
 Установка сертификата в macOS и отключение TLS-проверки не нужны.
-Источник и SHA-256 сертификата записаны в `pyveighna/certs/README.md`.
+Источник и SHA-256 сертификата записаны в `takt/certs/README.md`.
