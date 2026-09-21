@@ -9,4 +9,5 @@ build/
 dist/
 .DS_Store
 .vntrader/
+.idea
 
