@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyveighna"
+version = "0.1.0"
+description = "Tinkoff Invest portfolio monitor powered by VeighNa"
+requires-python = ">=3.10,<3.14"
+dependencies = [
+  "vnpy==4.2.0",
+  "tinkoff-investments @ git+https://github.com/Tinkoff/invest-python.git@1cc84950266d62cd0bc7a43ad764dddfd4252630",
+  "python-dotenv>=1.0,<2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8,<10"]
+
+[project.scripts]
+pyveighna = "pyveighna.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["pyveighna*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.uv]
+# Archived SDK declares a removed, empty namespace distribution. Python 3 uses
+# native namespace packages; tinkoff.invest itself is supplied by the SDK.
+override-dependencies = ["tinkoff; python_version < '0'"]
+
+[tool.setuptools.package-data]
+pyveighna = ["web/*.html", "web/*.css", "web/*.js", "certs/*.pem", "certs/*.md"]

@@ -1,0 +1,2 @@
+"""PyVeighNa investment monitor."""
+
