@@ -54,8 +54,20 @@
                     <span class="period">24 часа · 5 мин</span></div>
                 <div class="chart-price" id="chart-price">—</div>
                 <div id="chart" class="chart"><p class="empty">График появится после получения котировок</p></div>
-                <div class="chart-footer"><span>Завершённые свечи</span><span>Местное время</span></div>
+                <div class="chart-footer"><span>Цена · <span class="sma-fast">Быстрая SMA</span> · <span class="sma-slow">Медленная SMA</span></span><span>Местное время</span></div>
             </article>
+        </section>
+        <section class="panel" id="strategy">
+            <div class="section-head"><h2>Стратегия · Пересечение SMA</h2><span class="period">Демонстрация · Только сигналы</span></div>
+            <p class="strategy-note">Анализ выбранного инструмента по закрытым пятиминутным свечам. Пересечение вверх — сигнал покупки, вниз — продажи. Заявки не отправляются.</p>
+            <form id="strategy-form" class="strategy-controls">
+                <label>Быстрая SMA<input id="fast-period" type="number" min="2" max="199" step="1" value="10" required></label>
+                <label>Медленная SMA<input id="slow-period" type="number" min="3" max="200" step="1" value="30" required></label>
+                <button type="submit">Применить</button>
+            </form>
+            <p id="strategy-status" role="status">Выберите инструмент в списке котировок.</p>
+            <div class="strategy-summary"><span id="fast-value">Быстрая SMA: —</span><span id="slow-value">Медленная SMA: —</span><span id="strategy-time">Последняя свеча: —</span></div>
+            <div class="table-scroll"><table><thead><tr><th>Время пересечения</th><th>Сигнал</th><th>Цена закрытия</th></tr></thead><tbody id="strategy-events"><tr><td colspan="3" class="empty">Ожидание истории</td></tr></tbody></table></div>
         </section>
         <section class="panel holdings">
             <div class="section-head"><h2>Активы <span id="position-count" class="count">0</span></h2><span

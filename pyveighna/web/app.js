@@ -5,8 +5,9 @@ const money = (value, currency='rub') => `${num(value)} ${currency.toLowerCase()
 const time = value => new Date(value).toLocaleTimeString('ru-RU');
 const sign = value => Number(value) < 0 ? 'negative' : 'positive';
 let snapshot = null, selected = null, historyVersion = 0, historyBusy = false, lastHistory = 0;
+let fastPeriod = 10, slowPeriod = 30;
 $('today').textContent = new Date().toLocaleDateString('ru-RU',{day:'numeric',month:'long',year:'numeric'});
-async function api(path, options){const response=await fetch(path, options);if(!response.ok)throw Error(`Ошибка сервера (${response.status})`);return response.json();}
+async function api(path, options){const response=await fetch(path, options);if(!response.ok){const data=await response.json().catch(()=>({}));throw Error(data.error||`Ошибка сервера (${response.status})`);}return response.json();}
 function quotes(){
   if(!snapshot)return;
   const query=$('search').value.trim().toLowerCase();
@@ -20,23 +21,48 @@ function select(figi){
   $('chart-title').textContent=quote?`${quote.instrument.ticker} · ${quote.instrument.name}`:figi;
   $('chart-price').textContent=quote?`${num(quote.price)} ${quote.instrument.currency.toUpperCase()}`:'—';
   $('chart').innerHTML='<p class="empty">Загрузка истории…</p>';
+  resetStrategy('Загрузка истории…');
   loadHistory(false);
 }
-function chart(points){
+function chart(points, strategy){
   if(!points.length){$('chart').innerHTML='<p class="empty">За последние 24 часа нет завершённых свечей</p>';return;}
   const values=points.map(p=>Number(p[1]));const lo=Math.min(...values),hi=Math.max(...values),span=hi-lo||Math.max(1,hi*.01);
   const x=i=>8+i/Math.max(1,points.length-1)*590,y=v=>175-(v-lo)/span*150;
   const line=values.map((v,i)=>`${i?'L':'M'}${x(i).toFixed(2)},${y(v).toFixed(2)}`).join(' ');
+  const averagePath=key=>{let started=false;return (strategy?.series||[]).map((row,i)=>{if(row[key]===null)return '';const command=started?'L':'M';started=true;return `${command}${x(i).toFixed(2)},${y(Number(row[key])).toFixed(2)}`;}).join(' ');};
+  const overlays=strategy?`<path d="${averagePath('fast')}" fill="none" stroke="#70d5a0" stroke-width="1.8"/><path d="${averagePath('slow')}" fill="none" stroke="#91bfff" stroke-width="1.8"/>`+strategy.events.map(event=>`<circle cx="${x(event.index)}" cy="${y(Number(event.price))}" r="4" fill="${event.signal==='buy'?'#70d5a0':'#ff9393'}"><title>${event.signal==='buy'?'Покупка':'Продажа'} · ${esc(new Date(event.time).toLocaleString('ru-RU'))}</title></circle>`).join(''):'';
   const labels=[0,1,2].map(i=>{const v=lo+span*i/2;return `<line x1="8" x2="600" y1="${y(v)}" y2="${y(v)}" stroke="#30353a" stroke-dasharray="3 5"/><text x="612" y="${y(v)+4}">${esc(num(v))}</text>`;}).join('');
   const stamp=i=>new Date(points[i][0]).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
-  $('chart').innerHTML=`<svg viewBox="0 0 700 218" role="img" aria-label="График цены ${esc($('chart-title').textContent)}"><defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f4cf57" stop-opacity=".20"/><stop offset="100%" stop-color="#f4cf57" stop-opacity="0"/></linearGradient></defs>${labels}<path d="${line} L${x(values.length-1)},190 L8,190 Z" fill="url(#fill)"/><path d="${line}" fill="none" stroke="#f4cf57" stroke-width="2.5" stroke-linejoin="round"/><circle cx="${x(values.length-1)}" cy="${y(values[values.length-1])}" r="3" fill="#f4cf57"/><text x="8" y="212">${stamp(0)}</text><text x="565" y="212">${stamp(points.length-1)}</text></svg>`;
+  $('chart').innerHTML=`<svg viewBox="0 0 700 218" role="img" aria-label="График цены ${esc($('chart-title').textContent)}"><defs><linearGradient id="fill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f4cf57" stop-opacity=".20"/><stop offset="100%" stop-color="#f4cf57" stop-opacity="0"/></linearGradient></defs>${labels}<path d="${line} L${x(values.length-1)},190 L8,190 Z" fill="url(#fill)"/><path d="${line}" fill="none" stroke="#f4cf57" stroke-width="2.5" stroke-linejoin="round"/>${overlays}<circle cx="${x(values.length-1)}" cy="${y(values[values.length-1])}" r="3" fill="#f4cf57"/><text x="8" y="212">${stamp(0)}</text><text x="565" y="212">${stamp(points.length-1)}</text></svg>`;
 }
+function resetStrategy(message){
+  $('strategy-status').textContent=message;
+  $('fast-value').textContent='Быстрая SMA: —';$('slow-value').textContent='Медленная SMA: —';
+  $('strategy-time').textContent='Последняя свеча: —';
+  $('strategy-events').innerHTML='<tr><td colspan="3" class="empty">Ожидание истории</td></tr>';
+}
+function renderStrategy(strategy){
+  if(!strategy){resetStrategy('История недоступна');return;}
+  const latest=strategy.latest;
+  $('fast-value').textContent=`SMA ${strategy.fast_period}: ${latest?.fast!=null?num(latest.fast):'—'}`;
+  $('slow-value').textContent=`SMA ${strategy.slow_period}: ${latest?.slow!=null?num(latest.slow):'—'}`;
+  $('strategy-time').textContent=`Последняя свеча: ${latest?new Date(latest.time).toLocaleString('ru-RU'):'—'}`;
+  const name=$('chart-title').textContent;
+  $('strategy-status').textContent=!strategy.ready?`${name}: недостаточно свечей (${strategy.bars} из ${strategy.required}). Уменьшите периоды или дождитесь новых свечей.`:`${name} · ${strategy.signal==='buy'?'Пересечение вверх — сигнал покупки':strategy.signal==='sell'?'Пересечение вниз — сигнал продажи':'На последней свече нового пересечения нет'}`;
+  $('strategy-events').innerHTML=[...strategy.events].reverse().map(event=>`<tr><td>${esc(new Date(event.time).toLocaleString('ru-RU'))}</td><td class="${event.signal==='buy'?'positive':'negative'}">${event.signal==='buy'?'Покупка ↑':'Продажа ↓'}</td><td>${num(event.price)}</td></tr>`).join('')||'<tr><td colspan="3" class="empty">Пересечений на доступной истории нет</td></tr>';
+}
+$('strategy-form').addEventListener('submit',event=>{
+  event.preventDefault();const fast=Number($('fast-period').value),slow=Number($('slow-period').value);
+  if(!Number.isInteger(fast)||!Number.isInteger(slow)||fast<2||fast>=slow||slow>200){$('strategy-status').textContent='Укажите целые периоды: 2 ≤ быстрая < медленная ≤ 200';return;}
+  fastPeriod=fast;slowPeriod=slow;
+  if(selected)select(selected);else resetStrategy('Выберите инструмент в списке котировок.');
+});
 async function loadHistory(refresh){
   if(!selected||historyBusy)return;historyBusy=true;lastHistory=Date.now();const version=historyVersion;
-  try{const result=await api(`/api/history?figi=${encodeURIComponent(selected)}${refresh?'&refresh=1':''}`);if(version!==historyVersion)return;
+  try{const result=await api(`/api/history?figi=${encodeURIComponent(selected)}&fast=${fastPeriod}&slow=${slowPeriod}${refresh?'&refresh=1':''}`);if(version!==historyVersion)return;
     if(result.pending){setTimeout(()=>{if(version===historyVersion)loadHistory(false);},1500);return;}
-    lastHistory=Date.now();if(result.error)$('chart').innerHTML=`<p class="empty">${esc(result.error)}</p>`;else chart(result.points);
-  }catch(error){if(version===historyVersion){$('chart').innerHTML=`<p class="empty">${esc(error.message)}</p>`;lastHistory=Date.now();}}
+    lastHistory=Date.now();if(result.error){$('chart').innerHTML=`<p class="empty">${esc(result.error)}</p>`;resetStrategy(result.error);}else {chart(result.points,result.strategy);renderStrategy(result.strategy);}
+  }catch(error){if(version===historyVersion){$('chart').innerHTML=`<p class="empty">${esc(error.message)}</p>`;resetStrategy(error.message);lastHistory=Date.now();}}
   finally{if(version===historyVersion)historyBusy=false;}
 }
 function render(state){

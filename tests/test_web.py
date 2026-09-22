@@ -73,3 +73,29 @@ def test_history_validation(server):
     assert error.value.code == 400
     with urlopen(base + '/api/history?figi=SBER') as response:
         assert json.load(response)['pending']
+
+
+def test_strategy_history_response(server):
+    base, dashboard = server
+    from datetime import timedelta
+    start = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    dashboard.history = lambda figi, refresh: dict(
+        points=[(start+timedelta(minutes=5*i), p) for i, p in enumerate([5, 4, 3, 2, 3, 4])],
+        pending=False, error=None)
+    with urlopen(base+'/api/history?figi=SBER&fast=2&slow=3') as response:
+        result = json.load(response)
+    assert result['strategy']['signal'] == 'buy'
+    assert len(result['strategy']['events']) == 1
+    assert dashboard.refreshes == 0
+    for periods in ['fast=30&slow=10', 'fast=oops', 'slow=10000']:
+        with pytest.raises(HTTPError) as error:
+            urlopen(base+'/api/history?figi=SBER&'+periods)
+        assert error.value.code == 400
+
+
+def test_strategy_absent_while_history_pending_or_failed(server):
+    base, dashboard = server
+    for pending, error in [(True, None), (False, 'История недоступна')]:
+        dashboard.history = lambda figi, refresh: dict(points=[], pending=pending, error=error)
+        with urlopen(base+'/api/history?figi=SBER') as response:
+            assert json.load(response)['strategy'] is None

@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from .engine import InvestmentEngine, EVENT_SNAPSHOT, EVENT_STATUS, EVENT_LOG, EVENT_HISTORY
 from vnpy.trader.event import EVENT_TICK
+from .strategy import analyze_crossovers, validate_periods
 
 STATIC = Path(__file__).with_name('web')
 
@@ -108,7 +109,14 @@ def make_server(dashboard, port):
             if path.path == '/api/history':
                 query = parse_qs(path.query)
                 try:
-                    return self.reply(dashboard.history(query.get('figi', [''])[0], query.get('refresh') == ['1']))
+                    fast = int(query.get('fast', ['10'])[0])
+                    slow = int(query.get('slow', ['30'])[0])
+                    validate_periods(fast, slow)
+                    result = dict(dashboard.history(query.get('figi', [''])[0], query.get('refresh') == ['1']))
+                    result['strategy'] = None
+                    if not result.get('pending') and not result.get('error'):
+                        result['strategy'] = analyze_crossovers(result['points'], fast, slow)
+                    return self.reply(result)
                 except ValueError as error:
                     return self.reply({'error': str(error)}, status=400)
             files = {'/': ('index.html', 'text/html; charset=utf-8'),
